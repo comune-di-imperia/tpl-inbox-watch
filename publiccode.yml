@@ -1,0 +1,73 @@
+publiccodeYmlVersion: "0.4"
+
+name: tpl-inbox-watch
+url: "https://github.com/comune-di-imperia/tpl-inbox-watch"
+softwareVersion: "1.0.0"
+releaseDate: "2026-08-23"
+platforms:
+  - linux
+
+categories:
+  - it-service-management
+  - email-management
+
+developmentStatus: stable
+softwareType: standalone/other
+
+description:
+  it:
+    localisedName: Sorveglianza casella TPL
+    shortDescription: >-
+      Controllo periodico della casella di posta della sperimentazione del
+      trasporto pubblico a guida autonoma, con avviso via email e Telegram.
+    longDescription: >-
+      Il programma controlla a intervalli regolari la casella di posta indicata
+      ai cittadini dall'applicazione della sperimentazione del trasporto
+      pubblico locale a guida autonoma del Comune di Imperia. Quando arrivano
+      messaggi nuovi rispetto al controllo precedente invia a chi deve
+      rispondere una email di riepilogo e, se configurata, una notifica
+      Telegram, riportando mittente, oggetto, data e un'anteprima del testo.
+
+      La casella viene aperta in sola lettura e i messaggi sono prelevati senza
+      alterarne lo stato di lettura: non vengono segnati come letti, spostati o
+      cancellati. Il confronto avviene per UID e non per data, perche' la data
+      e' dichiarata dal mittente e non riflette l'ordine di arrivo. Lo stato
+      viene aggiornato soltanto se la notifica parte davvero, cosi' un guasto
+      temporaneo del server di posta non fa perdere segnalazioni.
+
+      Il programma usa la sola libreria standard di Python, non richiede
+      privilegi di amministratore e non contiene credenziali: ogni parametro
+      arriva da variabili d'ambiente.
+    features:
+      - Controllo periodico di una casella IMAP in sola lettura
+      - Avviso via email con riepilogo dei messaggi da gestire
+      - Notifica Telegram verso uno o piu' destinatari
+      - Anteprima del testo configurabile o disattivabile
+      - Filtro dei mittenti di servizio da non segnalare
+
+legal:
+  license: EUPL-1.2
+  mainCopyrightOwner: Comune di Imperia
+  repoOwner: Comune di Imperia
+
+maintenance:
+  type: contract
+  contractors:
+    - name: "Studio Capacci"
+      until: "2027-12-31"
+
+localisation:
+  localisationReady: false
+  availableLanguages:
+    - it
+
+it:
+  countryExtensionVersion: "1.0"
+  riuso:
+    codiceIPA: c_e290
+  piattaforme:
+    spid: false
+    cie: false
+    anpr: false
+    pagopa: false
+    io: false
