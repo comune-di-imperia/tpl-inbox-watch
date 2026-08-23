@@ -87,6 +87,55 @@ class Config:
             env("TPL_STATE_FILE", str(Path.home() / ".local/state/tpl-inbox-watch.json"))
         )
 
+        # I destinatari possono essere gestiti dall'interfaccia web: se il file
+        # esiste ha la precedenza sulle variabili d'ambiente, che restano come
+        # configurazione di riserva per chi installa senza applicazione.
+        self._applica_destinatari()
+
+    def _applica_destinatari(self) -> None:
+        """Sostituisce i destinatari con quelli gestiti dall'interfaccia.
+
+        Il file lo scrive l'applicazione web e contiene solo indirizzi e
+        identificativi di chat: nessuna credenziale, quindi puo' stare in una
+        cartella condivisa fra le due utenze. Se manca o e' illeggibile si
+        prosegue con le variabili d'ambiente, perche' restare senza
+        destinatari significherebbe non avvisare piu' nessuno.
+        """
+        percorso = Path(
+            env(
+                "TPL_DESTINATARI_FILE",
+                str(self.state_file.parent / "destinatari.json"),
+            )
+        )
+        if not percorso.exists():
+            return
+
+        try:
+            dati = json.loads(percorso.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            logger.warning(
+                "Elenco destinatari illeggibile: uso la configurazione di riserva",
+                extra={"context": {"file": str(percorso)}},
+            )
+            return
+
+        email_voci = [v for v in dati.get("email", []) if v.get("indirizzo")]
+        principali = [v["indirizzo"] for v in email_voci if v.get("ruolo", "a") == "a"]
+        copie = [v["indirizzo"] for v in email_voci if v.get("ruolo") == "cc"]
+
+        if principali:
+            self.destinatari = principali
+            self.copia = copie
+        elif email_voci:
+            logger.warning(
+                "Nessun destinatario principale nell'elenco: uso la configurazione "
+                "di riserva"
+            )
+
+        self.telegram_chat_id = [
+            str(v["chat_id"]) for v in dati.get("telegram", []) if v.get("chat_id")
+        ]
+
     @staticmethod
     def _lista(nome: str) -> list:
         grezzo = env(nome)
@@ -370,6 +419,22 @@ def invia_telegram(cfg: Config, messaggi: list) -> bool:
     return inviati > 0
 
 
+def riepilogo_configurazione(cfg: Config) -> dict:
+    """Parametri non riservati, per l'interfaccia di gestione.
+
+    Vanno annotati a ogni giro e non solo quando parte una notifica: chi apre
+    la pagina deve vedere a chi arriverebbero gli avvisi anche nei giorni in
+    cui la casella resta vuota.
+    """
+    return {
+        "casella": cfg.imap_user,
+        "destinatari": cfg.destinatari,
+        "copia": cfg.copia,
+        "telegram": len(cfg.telegram_chat_id),
+        "anteprima": cfg.lunghezza_anteprima,
+    }
+
+
 def esegui(cfg: Config, dry_run: bool = False) -> int:
     mancanti = cfg.valida()
     if mancanti:
@@ -393,10 +458,15 @@ def esegui(cfg: Config, dry_run: bool = False) -> int:
         logger.info(
             "Nessun messaggio nuovo", extra={"context": {"ultimo_uid": ultimo_uid}}
         )
-        if massimo > ultimo_uid and not dry_run:
-            # In casella sono arrivati solo messaggi da ignorare: sposto comunque
-            # il cursore, altrimenti verrebbero riesaminati a ogni giro.
-            stato.update({"ultimo_uid": massimo, "ultimo_controllo": adesso})
+        if not dry_run:
+            # Anche a mani vuote si annota il passaggio: l'interfaccia di
+            # gestione deve poter distinguere "nulla da fare" da "non gira piu'".
+            # Se in casella e' arrivato solo traffico da ignorare si sposta anche
+            # il cursore, altrimenti quei messaggi verrebbero riesaminati sempre.
+            stato["ultimo_controllo"] = adesso
+            stato["configurazione"] = riepilogo_configurazione(cfg)
+            if massimo > ultimo_uid:
+                stato["ultimo_uid"] = massimo
             salva_stato(cfg.state_file, stato)
         return 0
 
@@ -433,6 +503,18 @@ def esegui(cfg: Config, dry_run: bool = False) -> int:
             "ultimo_controllo": adesso,
             "ultima_notifica": adesso,
             "ultimi_notificati": len(messaggi),
+            # Riepilogo per l'interfaccia di gestione: mostra cosa e' stato
+            # segnalato senza dover riaprire la casella.
+            "ultimi_messaggi": [
+                {
+                    "data": m["data"],
+                    "da": m["da"],
+                    "oggetto": m["oggetto"],
+                    "anteprima": m.get("anteprima", ""),
+                }
+                for m in messaggi[-10:]
+            ],
+            "configurazione": riepilogo_configurazione(cfg),
         }
     )
     salva_stato(cfg.state_file, stato)

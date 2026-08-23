@@ -49,6 +49,7 @@ chmod 600 ~/.config/tpl-inbox-watch/env
 | `TPL_TELEGRAM_TOKEN`, `TPL_TELEGRAM_CHAT_ID` | notifica Telegram (facoltativa) |
 | `TPL_IGNORA_MITTENTI` | frammenti di indirizzo da non segnalare |
 | `TPL_LUNGHEZZA_ANTEPRIMA` | caratteri di anteprima del testo (`0` la disattiva) |
+| `TPL_DESTINATARI_FILE` | elenco destinatari gestito da interfaccia esterna (ha la precedenza) |
 | `TPL_STATE_FILE` | file di stato con l'ultimo UID notificato |
 
 ## Uso
@@ -93,3 +94,28 @@ Distribuito con licenza **EUPL-1.2** (European Union Public Licence), come
 previsto dall'articolo 69 del Codice dell'amministrazione digitale per il
 software sviluppato su commessa di una pubblica amministrazione. Vedi
 [`LICENSE`](LICENSE).
+
+## Destinatari gestiti dall'esterno
+
+Chi risponde ai cittadini cambia nel tempo. Oltre alle variabili d'ambiente,
+il programma accetta un elenco in formato JSON che ha la precedenza su di esse
+e viene riletto a ogni giro: così un'interfaccia di gestione può modificarlo
+senza che nessuno debba entrare sul server.
+
+```json
+{
+  "email": [
+    {"indirizzo": "nome.cognome@comune.esempio.it", "ruolo": "a", "nota": "ufficio mobilità"},
+    {"indirizzo": "altro@comune.esempio.it", "ruolo": "cc", "nota": ""}
+  ],
+  "telegram": [
+    {"chat_id": "123456789", "nome": "Nome Cognome"}
+  ]
+}
+```
+
+Il file contiene **solo** indirizzi e identificativi di chat: nessuna
+credenziale, quindi può stare in una cartella condivisa fra l'utenza che
+esegue la sorveglianza e quella che esegue l'interfaccia. Se manca, è
+illeggibile o non contiene destinatari principali, si torna alle variabili
+d'ambiente: restare senza destinatari significherebbe non avvisare nessuno.
